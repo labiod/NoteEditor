@@ -1,26 +1,28 @@
 package com.kgb.noteseditor
 
+import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Intent
 import android.databinding.DataBindingUtil
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.AppCompatActivity
+import android.support.v7.widget.DividerItemDecoration
 import android.support.v7.widget.LinearLayoutManager
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import com.kgb.noteseditor.databinding.ActivityMainBinding
 import com.kgb.noteseditor.database.NoteEntity
+import com.kgb.noteseditor.databinding.ActivityMainBinding
 import com.kgb.noteseditor.ui.NotesAdapter
-import com.kgb.noteseditor.utilities.SampleData
 import com.kgb.noteseditor.viewmodel.MainViewModel
-
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
 
 class MainActivity : AppCompatActivity() {
     private val notesData = ArrayList<NoteEntity>()
     lateinit var binding: ActivityMainBinding
+    var notesAdapter : NotesAdapter? = null
+    var viewModel : MainViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,11 +34,8 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this@MainActivity, EditorActivity::class.java)
             startActivity(intent)
         }
-        binding.viewmodel = ViewModelProviders.of(this).get(MainViewModel::class.java)
+        initViewModel()
 
-        binding.viewmodel?.let {
-            notesData.addAll(it.notes)
-        }
         notesData.forEach { Log.i(MainActivity::class.java.name, it.toString()) }
     }
 
@@ -55,6 +54,10 @@ class MainActivity : AppCompatActivity() {
                addSampleData()
                 true
             }
+            R.id.action_delete_all -> {
+                deleteAllNotes()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -67,6 +70,32 @@ class MainActivity : AppCompatActivity() {
         recycler_view.setHasFixedSize(true)
         val linearManager = LinearLayoutManager(this)
         recycler_view.layoutManager = linearManager
-        recycler_view.adapter = NotesAdapter(notesData)
+        val divider = DividerItemDecoration(this, linearManager.orientation)
+        recycler_view.addItemDecoration(divider)
+    }
+
+    private fun initViewModel() {
+        val notesObserver = Observer<List<NoteEntity>> { notes ->
+            notesData.clear()
+            notes?.let {
+                notesData.addAll(it)
+            }
+            if (notesAdapter == null) {
+                notesAdapter = NotesAdapter(notesData)
+                recycler_view.adapter = notesAdapter
+            } else {
+                notesAdapter?.notifyDataSetChanged()
+            }
+
+
+            
+        }
+        viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
+        viewModel?.notes?.observe(this, notesObserver)
+        binding.viewmodel = viewModel
+    }
+
+    private fun deleteAllNotes() {
+        viewModel?.deleteAllNotes()
     }
 }
